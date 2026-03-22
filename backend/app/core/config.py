@@ -5,6 +5,7 @@ Central configuration — all settings loaded from environment variables.
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,9 +25,31 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
 
     # Database
+    # Must use the asyncpg driver scheme (postgresql+asyncpg://).
+    # Azure App Service and some CI tools supply a plain postgresql:// URL —
+    # the validator below rewrites the scheme automatically so the app never
+    # starts with a sync driver and produces a cryptic SQLAlchemy error.
     DATABASE_URL: str = "postgresql+asyncpg://avantika:avantika@localhost:5432/avantika"
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def require_asyncpg_driver(cls, v: str) -> str:
+        """
+        Rewrite DATABASE_URL to use the asyncpg driver if a plain
+        postgresql:// or postgres:// scheme was supplied.
+
+        This prevents the startup crash:
+          sqlalchemy.exc.InvalidRequestError: The asyncio extension requires
+          an async driver to be used. The loaded 'psycopg2' is not async.
+        """
+        if isinstance(v, str):
+            for sync_scheme in ("postgresql://", "postgres://"):
+                if v.startswith(sync_scheme):
+                    v = "postgresql+asyncpg://" + v[len(sync_scheme):]
+                    break
+        return v
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
