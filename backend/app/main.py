@@ -3,7 +3,7 @@ Avantika Global Language AI — Backend API
 FastAPI application entry point with full middleware, routing, and health checks.
 """
 
-import os
+import logging
 import time
 from contextlib import asynccontextmanager
 
@@ -18,6 +18,13 @@ from app.core.database import engine
 from app.core.redis_client import close_redis, get_redis
 from app.models.models import Base
 
+logger = logging.getLogger(__name__)
+
+startup_state = {
+    "database": "pending",
+    "redis": "pending",
+}
+
 
 # ---------------------------------------------------------------------------
 # Lifespan — startup / shutdown
@@ -25,14 +32,37 @@ from app.models.models import Base
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    await get_redis()  # warm connection
+    logger.info("Startup begin")
+
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        startup_state["database"] = "ok"
+        logger.info("Database startup complete")
+    except Exception:
+        startup_state["database"] = "failed"
+        logger.exception("Database startup failed")
+
+    try:
+        await get_redis()
+        startup_state["redis"] = "ok"
+        logger.info("Redis startup complete")
+    except Exception:
+        startup_state["redis"] = "failed"
+        logger.exception("Redis startup failed")
+
+    logger.info("Startup complete")
     yield
-    # Shutdown
-    await close_redis()
-    await engine.dispose()
+
+    try:
+        await close_redis()
+    except Exception:
+        logger.exception("Redis shutdown failed")
+
+    try:
+        await engine.dispose()
+    except Exception:
+        logger.exception("Database shutdown failed")
 
 
 # ---------------------------------------------------------------------------
@@ -40,7 +70,7 @@ async def lifespan(app: FastAPI):
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title=settings.APP_NAME,
+    title="Avantika AI Assistant API",
     description="AI-powered multilingual learning and translation SaaS platform",
     version="1.0.0",
     lifespan=lifespan,
@@ -106,9 +136,14 @@ app.include_router(automation.router, prefix=prefix)
 # Health and readiness probes
 # ---------------------------------------------------------------------------
 
+@app.get("/", tags=["ops"])
+async def root():
+    return {"status": "ok", "service": "avantika-ai-assistant-api"}
+
+
 @app.get("/health", tags=["ops"])
 async def health():
-    return {"status": "ok", "service": "avantika-backend", "version": "1.0.0"}
+    return {"status": "healthy"}
 
 
 @app.get("/ready", tags=["ops"])
@@ -130,6 +165,7 @@ async def ready():
         status_code=200 if all_ok else 503,
         content={
             "status": "ready" if all_ok else "degraded",
+            "startup": startup_state,
             "redis": "ok" if redis_ok else "unavailable",
             "agent_service": "ok" if agent_ok else "unavailable",
         },
