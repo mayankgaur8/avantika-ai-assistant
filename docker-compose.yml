@@ -1,0 +1,138 @@
+version: "3.9"
+
+# =============================================================================
+# Avantika Global Language AI — Local Development Stack
+# =============================================================================
+# Start: docker-compose up -d
+# Stop:  docker-compose down
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — primary database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: avantika-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: avantika
+      POSTGRES_PASSWORD: avantika
+      POSTGRES_DB: avantika
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U avantika"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Redis — sessions, cache, rate limiting
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: avantika-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Agent Service — CrewAI orchestration
+  # ---------------------------------------------------------------------------
+  agent-service:
+    build:
+      context: ./agents
+      dockerfile: Dockerfile
+    container_name: avantika-agents
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - ENV=development
+      - AGENT_SERVICE_PORT=8001
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SERPER_API_KEY=${SERPER_API_KEY}
+      - AI_PLATFORM_URL=${AI_PLATFORM_URL:-}
+      - AI_PLATFORM_APP_KEY=${AI_PLATFORM_APP_KEY:-}
+      - CHEAP_MODEL=${CHEAP_MODEL:-gpt-4o-mini}
+      - PREMIUM_MODEL=${PREMIUM_MODEL:-gpt-4o}
+      - USE_LOCAL_MODEL=${USE_LOCAL_MODEL:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Backend API — FastAPI
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: avantika-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=development
+      - DEBUG=true
+      - DATABASE_URL=postgresql+asyncpg://avantika:avantika@postgres:5432/avantika
+      - REDIS_URL=redis://redis:6379/0
+      - AGENT_SERVICE_URL=http://agent-service:8001
+      - AGENT_SERVICE_INTERNAL_KEY=${AGENT_SERVICE_INTERNAL_KEY:-internal-dev-key}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-prod}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-}
+      - RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET:-}
+      - ALLOWED_ORIGINS=http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      agent-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Frontend — Next.js (dev mode)
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: avantika-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - NEXT_PUBLIC_RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-}
+    volumes:
+      - ./frontend/src:/app/src   # hot reload in dev
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:

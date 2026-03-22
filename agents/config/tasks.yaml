@@ -1,0 +1,398 @@
+# =============================================================================
+# Avantika Global Language AI — Task Definitions
+# Production-grade, strict-JSON-output tasks
+#
+# SAFETY RULES applied to every task:
+#   1. Each description ends with three non-negotiable output rules.
+#   2. All list fields carry explicit exact counts so the LLM cannot omit items.
+#   3. Every JSON schema includes the standard metadata envelope:
+#      task_type / version / generated_at / source_language / target_language / content
+#   4. Double-braces {{ }} produce literal { } after Python .format() substitution.
+#      Single-braces {var} are template slots filled at runtime.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# TASK 1 — Real-Time Conversational Translation
+# ---------------------------------------------------------------------------
+real_time_translation:
+  description: >
+    Translate the following text from {source_language} to {target_language}.
+
+    Input text: {input_text}
+    Context/tone: {context_tone}
+    Formality level: {formality_level}
+
+    Provide ALL of the following — omitting any field is an error:
+    1. Primary translation (natural, context-aware)
+    2. Literal translation (word-for-word, for learning comparison)
+    3. Phonetic pronunciation of the primary translation
+    4. Exactly 2 alternative phrasings with slight tone differences
+    5. Key vocabulary breakdown: exactly 3 to 5 words, each with word/meaning/part_of_speech
+    6. Cultural note if relevant (null if none)
+    7. Usage warning if applicable (null if none)
+    8. Confidence score between 0.0 and 1.0
+
+    OUTPUT RULES — these are mandatory and non-negotiable:
+    - Return ONLY raw JSON. No markdown code fences. No ```json wrapper.
+    - Do not include any explanation, preamble, or commentary before or after the JSON.
+    - The response must start with {{ and end with }}.
+
+    Use this exact schema:
+    {{
+      "task_type": "translate",
+      "version": "1.0",
+      "generated_at": "ISO 8601 UTC timestamp e.g. 2024-01-15T10:30:00Z",
+      "source_language": "{source_language}",
+      "target_language": "{target_language}",
+      "content": {{
+        "primary_translation": "string",
+        "literal_translation": "string",
+        "pronunciation": "string",
+        "alternatives": ["string", "string"],
+        "vocabulary": [
+          {{"word": "string", "meaning": "string", "part_of_speech": "string"}}
+        ],
+        "cultural_note": "string or null",
+        "usage_warning": "string or null",
+        "confidence_score": 0.95
+      }}
+    }}
+  expected_output: >
+    Raw JSON only. No markdown. A valid JSON object with the standard metadata envelope
+    (task_type, version, generated_at, source_language, target_language) and a content
+    object containing primary_translation, literal_translation, pronunciation,
+    exactly 2 alternatives, 3-5 vocabulary items, cultural_note, usage_warning,
+    and confidence_score.
+  agent: real_time_translator
+  async_execution: false
+
+# ---------------------------------------------------------------------------
+# TASK 2 — Structured Language Lesson
+# ---------------------------------------------------------------------------
+structured_language_lesson:
+  description: >
+    Create a structured language lesson for a {user_level} learner of {target_language}
+    who speaks {source_language}.
+
+    Lesson topic: {lesson_topic}
+    Session number: {session_number}
+    Previously covered topics: {previous_topics}
+
+    The lesson MUST include ALL of the following — omitting any field is an error:
+    1. Lesson title
+    2. Exactly 3 learning objectives
+    3. Vocabulary section: exactly 10 words, each with word/translation/pronunciation/example/example_translation
+    4. Grammar focus: exactly 1 key rule with explanation and exactly 3 example sentences
+    5. Dialogue practice: exactly 4 to 6 exchanges, each with speaker/text/translation
+    6. Exactly 5 practice exercises (type must be "multiple_choice" or "fill_blank"),
+       each with question/options/answer
+    7. One cultural tip related to the lesson topic
+    8. Estimated duration in minutes (integer)
+
+    OUTPUT RULES — these are mandatory and non-negotiable:
+    - Return ONLY raw JSON. No markdown code fences. No ```json wrapper.
+    - Do not include any explanation, preamble, or commentary before or after the JSON.
+    - The response must start with {{ and end with }}.
+
+    Use this exact schema:
+    {{
+      "task_type": "learn",
+      "version": "1.0",
+      "generated_at": "ISO 8601 UTC timestamp e.g. 2024-01-15T10:30:00Z",
+      "source_language": "{source_language}",
+      "target_language": "{target_language}",
+      "content": {{
+        "lesson_title": "string",
+        "objectives": ["string", "string", "string"],
+        "vocabulary": [
+          {{
+            "word": "string",
+            "translation": "string",
+            "pronunciation": "string",
+            "example": "string",
+            "example_translation": "string"
+          }}
+        ],
+        "grammar": {{
+          "rule": "string",
+          "explanation": "string",
+          "examples": ["string", "string", "string"]
+        }},
+        "dialogue": [
+          {{"speaker": "string", "text": "string", "translation": "string"}}
+        ],
+        "exercises": [
+          {{
+            "type": "multiple_choice",
+            "question": "string",
+            "options": ["string"],
+            "answer": "string"
+          }}
+        ],
+        "cultural_tip": "string",
+        "estimated_duration_minutes": 20
+      }}
+    }}
+  expected_output: >
+    Raw JSON only. No markdown. A valid JSON object with the standard metadata envelope
+    and a content object containing lesson_title, exactly 3 objectives, exactly 10
+    vocabulary items, a grammar section with exactly 3 examples, 4-6 dialogue exchanges,
+    exactly 5 exercises with answers, a cultural tip, and estimated_duration_minutes.
+  agent: language_teacher
+  async_execution: false
+
+# ---------------------------------------------------------------------------
+# TASK 3 — Travel Scenario Simulation
+# ---------------------------------------------------------------------------
+travel_scenario_simulation:
+  description: >
+    Create a travel scenario practice session for a traveler visiting {destination_country}.
+    The traveler speaks {source_language} and needs to communicate in {target_language}.
+    Scenario type: {scenario_type}
+    (e.g., airport_arrival, hotel_checkin, restaurant_ordering, shopping,
+     taxi_directions, medical_emergency, police_station, train_booking)
+
+    Provide ALL of the following — omitting any field is an error:
+    1. Scenario description (2–3 sentences setting the scene)
+    2. Exactly 10 essential phrases, each with phrase/translation/pronunciation/when_to_use
+    3. Realistic role-play dialogue: exactly 8 to 10 exchanges,
+       each with speaker ("traveler" or "local")/text/translation/note (note may be null)
+    4. Exactly 8 key vocabulary items, each with word/translation/pronunciation
+    5. At least 3 cultural etiquette tips specific to {destination_country} for this scenario
+    6. One emergency fallback phrase (plain string)
+    7. At least 3 common mistakes made by {source_language} speakers to avoid
+
+    OUTPUT RULES — these are mandatory and non-negotiable:
+    - Return ONLY raw JSON. No markdown code fences. No ```json wrapper.
+    - Do not include any explanation, preamble, or commentary before or after the JSON.
+    - The response must start with {{ and end with }}.
+
+    Use this exact schema:
+    {{
+      "task_type": "travel",
+      "version": "1.0",
+      "generated_at": "ISO 8601 UTC timestamp e.g. 2024-01-15T10:30:00Z",
+      "source_language": "{source_language}",
+      "target_language": "{target_language}",
+      "content": {{
+        "scenario_type": "string",
+        "scenario_description": "string",
+        "essential_phrases": [
+          {{
+            "phrase": "string",
+            "translation": "string",
+            "pronunciation": "string",
+            "when_to_use": "string"
+          }}
+        ],
+        "dialogue": [
+          {{
+            "speaker": "traveler",
+            "text": "string",
+            "translation": "string",
+            "note": "string or null"
+          }}
+        ],
+        "vocabulary": [
+          {{"word": "string", "translation": "string", "pronunciation": "string"}}
+        ],
+        "etiquette_tips": ["string", "string", "string"],
+        "emergency_phrase": "string",
+        "common_mistakes": ["string", "string", "string"]
+      }}
+    }}
+  expected_output: >
+    Raw JSON only. No markdown. A valid JSON object with the standard metadata envelope
+    and a content object containing scenario_type, scenario_description, exactly 10
+    essential_phrases, 8-10 dialogue exchanges, exactly 8 vocabulary items, at least 3
+    etiquette_tips, one emergency_phrase, and at least 3 common_mistakes.
+  agent: travel_assistant
+  async_execution: false
+
+# ---------------------------------------------------------------------------
+# TASK 4 — Professional Communication Coaching
+# ---------------------------------------------------------------------------
+professional_communication_coaching:
+  description: >
+    Provide professional communication coaching for a user in the {job_field} field.
+    Source language: {source_language}
+    Target language: {target_language}
+    Coaching type: {coaching_type}
+    (e.g., job_interview, email_writing, presentation_skills,
+     workplace_conversation, negotiation, performance_review)
+
+    User's draft text (if any): {user_draft}
+
+    Provide ALL of the following — omitting any field is an error:
+    1. Analysis of the user's draft: list of strengths and list of improvements
+       (if no draft provided, use empty lists)
+    2. Improved version of draft OR a scenario-specific script (plain string)
+    3. Exactly 10 professional vocabulary terms for {job_field},
+       each with term/meaning/example
+    4. Tone and register guidance for {job_field} culture (plain string)
+    5. Exactly 3 simulated interview Q&A pairs (required regardless of coaching_type),
+       each with question/ideal_answer/tips
+    6. At least 3 common mistakes made by {source_language} speakers in {job_field}
+    7. At least 3 confidence tips (actionable, specific)
+
+    OUTPUT RULES — these are mandatory and non-negotiable:
+    - Return ONLY raw JSON. No markdown code fences. No ```json wrapper.
+    - Do not include any explanation, preamble, or commentary before or after the JSON.
+    - The response must start with {{ and end with }}.
+
+    Use this exact schema:
+    {{
+      "task_type": "coach",
+      "version": "1.0",
+      "generated_at": "ISO 8601 UTC timestamp e.g. 2024-01-15T10:30:00Z",
+      "source_language": "{source_language}",
+      "target_language": "{target_language}",
+      "content": {{
+        "coaching_type": "string",
+        "analysis": {{
+          "strengths": ["string"],
+          "improvements": ["string"]
+        }},
+        "improved_version": "string",
+        "professional_vocabulary": [
+          {{"term": "string", "meaning": "string", "example": "string"}}
+        ],
+        "tone_guidance": "string",
+        "interview_qa": [
+          {{"question": "string", "ideal_answer": "string", "tips": "string"}}
+        ],
+        "common_mistakes": ["string", "string", "string"],
+        "confidence_tips": ["string", "string", "string"]
+      }}
+    }}
+  expected_output: >
+    Raw JSON only. No markdown. A valid JSON object with the standard metadata envelope
+    and a content object containing coaching_type, analysis (strengths + improvements),
+    improved_version, exactly 10 professional_vocabulary items, tone_guidance,
+    exactly 3 interview_qa pairs, at least 3 common_mistakes, and at least 3 confidence_tips.
+  agent: professional_communication_coach
+  async_execution: false
+
+# ---------------------------------------------------------------------------
+# TASK 5 — Curriculum Planning
+# ---------------------------------------------------------------------------
+curriculum_planning:
+  description: >
+    Create a structured {duration_weeks}-week language learning curriculum for:
+    - Learner level: {user_level}
+    - Source language: {source_language}
+    - Target language: {target_language}
+    - Goal: {learning_goal}
+    (e.g., travel_basics, business_communication, academic_proficiency, daily_conversation)
+
+    The curriculum MUST include ALL of the following — omitting any field is an error:
+    1. Curriculum title
+    2. Total weeks (must equal {duration_weeks})
+    3. Target proficiency level at end (A1/A2/B1/B2/C1/C2)
+    4. Exactly {duration_weeks} week objects, each with:
+       - week number (integer, 1-indexed)
+       - theme (string)
+       - at least 2 objectives (list of strings)
+       - vocabulary_count (integer > 0)
+       - at least 1 grammar_topic (list of strings)
+       - at least 1 scenario_type (list of strings)
+       - study_hours (number > 0)
+       - milestone (string describing checkpoint, or null if no checkpoint this week)
+
+    OUTPUT RULES — these are mandatory and non-negotiable:
+    - Return ONLY raw JSON. No markdown code fences. No ```json wrapper.
+    - Do not include any explanation, preamble, or commentary before or after the JSON.
+    - The response must start with {{ and end with }}.
+
+    Use this exact schema:
+    {{
+      "task_type": "curriculum",
+      "version": "1.0",
+      "generated_at": "ISO 8601 UTC timestamp e.g. 2024-01-15T10:30:00Z",
+      "source_language": "{source_language}",
+      "target_language": "{target_language}",
+      "content": {{
+        "curriculum_title": "string",
+        "total_weeks": {duration_weeks},
+        "target_level_end": "A2",
+        "weeks": [
+          {{
+            "week": 1,
+            "theme": "string",
+            "objectives": ["string", "string"],
+            "vocabulary_count": 30,
+            "grammar_topics": ["string"],
+            "scenario_types": ["string"],
+            "study_hours": 5,
+            "milestone": "string or null"
+          }}
+        ]
+      }}
+    }}
+  expected_output: >
+    Raw JSON only. No markdown. A valid JSON object with the standard metadata envelope
+    and a content object containing curriculum_title, total_weeks, target_level_end,
+    and a weeks array with exactly {duration_weeks} entries each containing week number,
+    theme, at least 2 objectives, vocabulary_count, grammar_topics, scenario_types,
+    study_hours, and milestone.
+  agent: curriculum_planner
+  async_execution: true
+
+# ---------------------------------------------------------------------------
+# TASK 6 — Cultural Etiquette Briefing
+# ---------------------------------------------------------------------------
+cultural_etiquette_briefing:
+  description: >
+    Provide a comprehensive cultural etiquette briefing for a person from {source_country}
+    visiting or working in {destination_country}.
+    Context: {etiquette_context}
+    (e.g., business_meeting, social_dinner, religious_site, casual_interaction)
+
+    Cover ALL of the following — omitting any field is an error:
+    1. Greeting norms (handshake vs bow vs namaste, eye contact, personal space)
+    2. Dining etiquette: at least 3 dos and at least 3 don'ts
+    3. Business culture: at least 3 norms and at least 3 tips
+    4. At least 4 taboo topics or gestures to absolutely avoid
+    5. Dress code expectations (plain string)
+    6. Religious or cultural sensitivities (plain string, or null if none)
+    7. At least 3 common misunderstandings between {source_country}
+       and {destination_country} cultures
+
+    OUTPUT RULES — these are mandatory and non-negotiable:
+    - Return ONLY raw JSON. No markdown code fences. No ```json wrapper.
+    - Do not include any explanation, preamble, or commentary before or after the JSON.
+    - The response must start with {{ and end with }}.
+
+    Use this exact schema:
+    {{
+      "task_type": "culture",
+      "version": "1.0",
+      "generated_at": "ISO 8601 UTC timestamp e.g. 2024-01-15T10:30:00Z",
+      "source_language": "{source_language}",
+      "target_language": "{target_language}",
+      "content": {{
+        "destination_country": "string",
+        "context": "string",
+        "greeting_norms": "string",
+        "dining_etiquette": {{
+          "dos": ["string", "string", "string"],
+          "donts": ["string", "string", "string"]
+        }},
+        "business_culture": {{
+          "norms": ["string", "string", "string"],
+          "tips": ["string", "string", "string"]
+        }},
+        "taboos": ["string", "string", "string", "string"],
+        "dress_code": "string",
+        "religious_sensitivities": "string or null",
+        "common_misunderstandings": ["string", "string", "string"]
+      }}
+    }}
+  expected_output: >
+    Raw JSON only. No markdown. A valid JSON object with the standard metadata envelope
+    and a content object containing destination_country, context, greeting_norms,
+    dining_etiquette (at least 3 dos and 3 donts), business_culture (at least 3 norms
+    and 3 tips), at least 4 taboos, dress_code, religious_sensitivities, and at least 3
+    common_misunderstandings.
+  agent: cultural_etiquette_coach
+  async_execution: false
