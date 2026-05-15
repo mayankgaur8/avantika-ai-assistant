@@ -48,6 +48,7 @@ class TaskType(str, Enum):
     COACH = "coach"
     CURRICULUM = "curriculum"
     CULTURE = "culture"
+    EVALUATE = "evaluate"
 
 
 # ===========================================================================
@@ -257,6 +258,15 @@ class CultureContent(BaseModel):
     common_misunderstandings: list[str] = Field(min_length=3)
 
 
+# ---- EVALUATE ----
+
+class EvaluateContent(BaseModel):
+    corrections: list[str]
+    score: int = Field(ge=0, le=100)
+    explanation: str
+    tips: list[str]
+
+
 # ===========================================================================
 # Top-level output wrappers — every task response includes standard metadata
 # ===========================================================================
@@ -303,6 +313,11 @@ class CultureOutput(TaskOutputBase):
     content: CultureContent
 
 
+class EvaluateOutput(TaskOutputBase):
+    task_type: Literal["evaluate"] = "evaluate"
+    content: EvaluateContent
+
+
 # Registry maps TaskType → its output schema class.
 # Used by validate_output() to pick the right validator without a switch.
 _TASK_OUTPUT_SCHEMAS: dict[TaskType, type[TaskOutputBase]] = {
@@ -312,6 +327,7 @@ _TASK_OUTPUT_SCHEMAS: dict[TaskType, type[TaskOutputBase]] = {
     TaskType.COACH: CoachOutput,
     TaskType.CURRICULUM: CurriculumOutput,
     TaskType.CULTURE: CultureOutput,
+    TaskType.EVALUATE: EvaluateOutput,
 }
 
 
@@ -328,6 +344,7 @@ _REQUIRED_INPUTS: dict[TaskType, list[str]] = {
     TaskType.COACH: ["job_field", "coaching_type"],
     TaskType.CURRICULUM: ["learning_goal"],
     TaskType.CULTURE: ["source_country", "destination_country", "etiquette_context"],
+    TaskType.EVALUATE: ["input_text"],
 }
 
 
@@ -642,6 +659,9 @@ class AvantikaAgentFactory:
     def get_culture_coach(self, inputs: dict) -> Agent:
         return self._make_agent("cultural_etiquette_coach", inputs)
 
+    def get_evaluation_coach(self, inputs: dict) -> Agent:
+        return self._make_agent("evaluation_coach", inputs)
+
 
 # ---------------------------------------------------------------------------
 # Task factory
@@ -690,6 +710,9 @@ class AvantikaTaskFactory:
 
     def culture_task(self, agent: Agent, inputs: dict) -> Task:
         return self._make_task("cultural_etiquette_briefing", agent, inputs)
+
+    def evaluate_task(self, agent: Agent, inputs: dict) -> Task:
+        return self._make_task("evaluate_grammar_task", agent, inputs)
 
 
 # ---------------------------------------------------------------------------
@@ -774,6 +797,9 @@ class AvantikaLanguageCrew:
             case TaskType.CULTURE:
                 agent = self._agent_factory.get_culture_coach(inputs)
                 task = self._task_factory.culture_task(agent, inputs)
+            case TaskType.EVALUATE:
+                agent = self._agent_factory.get_evaluation_coach(inputs)
+                task = self._task_factory.evaluate_task(agent, inputs)
             case _:
                 raise ValueError(f"Unknown task type: {task_type}")
         return agent, task

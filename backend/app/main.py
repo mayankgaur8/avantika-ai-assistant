@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.routes import admin, auth, automation, billing, language
+from app.api.routes import admin, auth, automation, billing, language, progress, coach
 from app.core.config import settings
 from app.core.database import engine
 from app.core.redis_client import close_redis, get_redis
@@ -130,6 +130,8 @@ app.include_router(language.router, prefix=prefix)
 app.include_router(billing.router, prefix=prefix)
 app.include_router(admin.router, prefix=prefix)
 app.include_router(automation.router, prefix=prefix)
+app.include_router(progress.router, prefix=prefix)
+app.include_router(coach.router, prefix=prefix)
 
 
 # ---------------------------------------------------------------------------

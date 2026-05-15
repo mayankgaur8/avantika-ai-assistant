@@ -396,3 +396,43 @@ cultural_etiquette_briefing:
     common_misunderstandings.
   agent: cultural_etiquette_coach
   async_execution: false
+
+# ---------------------------------------------------------------------------
+# TASK 7 — Grammar Evaluation
+# ---------------------------------------------------------------------------
+evaluate_grammar_task:
+  description: >
+    Evaluate the following text in {target_language}.
+    Input text: {input_text}
+
+    Provide ALL of the following:
+    1. A list of specific corrections (e.g., "Change 'I goes' to 'I go'").
+    2. A score out of 100 based on grammatical accuracy.
+    3. An overall explanation of the mistakes made.
+    4. A list of actionable tips to avoid these mistakes.
+
+    OUTPUT RULES — these are mandatory and non-negotiable:
+    - Return ONLY raw JSON. No markdown code fences. No ```json wrapper.
+    - Do not include any explanation, preamble, or commentary before or after the JSON.
+    - The response must start with {{ and end with }}.
+
+    Use this exact schema:
+    {{
+      "task_type": "evaluate",
+      "version": "1.0",
+      "generated_at": "ISO 8601 UTC timestamp e.g. 2024-01-15T10:30:00Z",
+      "source_language": "{source_language}",
+      "target_language": "{target_language}",
+      "content": {{
+        "corrections": ["string", "string"],
+        "score": 85,
+        "explanation": "string",
+        "tips": ["string", "string"]
+      }}
+    }}
+  expected_output: >
+    Raw JSON only. No markdown. A valid JSON object with the standard metadata envelope
+    and a content object containing a list of corrections, an integer score, an explanation,
+    and a list of tips.
+  agent: evaluation_coach
+  async_execution: false
